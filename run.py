@@ -10,7 +10,7 @@ def main():
     fetch_data.fetch_all()
 
     # 2. 抓取 CPI 一致预期（复旦-ZEW，失败则沿用旧值）
-  import os
+import os
     manual_url = os.environ.get("FDDI_ARTICLE_URL", "").strip() or None
     cpi_fc = fetch_cpi_forecast.fetch_and_save_safe(manual_url=manual_url)
 
