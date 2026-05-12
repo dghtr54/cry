@@ -1,0 +1,24 @@
+{
+  "fiscal": {
+    "score": 0.0,
+    "desc": "财政中性"
+  },
+  "real_estate": {
+    "score": -0.1,
+    "desc": "地产拖累(score=-3)"
+  },
+  "credit": {
+    "score": 0.0,
+    "desc": "信用中性"
+  },
+  "ppi": {
+    "score": -0.1,
+    "desc": "工业通缩"
+  },
+  "fx": {
+    "score": 0.0,
+    "desc": "汇率中性(1.4%)"
+  },
+  "raw_total": -0.2,
+  "capped_total": -0.2
+}
