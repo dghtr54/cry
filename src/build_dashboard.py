@@ -41,7 +41,11 @@ def build():
                                  mode="lines+markers", name="实际"), row=3, col=1)
     
     fig.update_layout(height=900, title_text="中国10年期实际收益率月度跟踪", showlegend=False)
-    
+    # 读取 CPI 预期信息
+    cpi_path = DATA_DIR / "cpi_forecast.json"
+    cpi_info = {}
+    if cpi_path.exists():
+        cpi_info = json.load(open(cpi_path, encoding="utf-8"))
     # 构造 HTML
     score_html = ""
     if score:
@@ -63,6 +67,12 @@ def build():
 <style>body{{font-family:Arial;max-width:1100px;margin:20px auto;padding:20px}}</style>
 </head><body>
 <h1>中国10年期实际收益率月度跟踪</h1>
+<p style="background:#f0f8ff;padding:10px;border-left:4px solid #4a90e2;">
+  📊 未来12个月CPI一致预期：<b>{cpi_info.get('forecast_value', 'N/A')}%</b>
+  ｜来源：<a href="{cpi_info.get('source_url', '#')}" target="_blank">{cpi_info.get('source', '未知')}</a>
+  ｜更新：{cpi_info.get('updated', 'N/A')}
+  {' ⚠️ 自动抓取失败，使用上期值' if cpi_info.get('fetch_status') == 'failed_used_cache' else ''}
+</p>
 {fig.to_html(include_plotlyjs="cdn", full_html=False)}
 {score_html}
 <p style="color:#888;font-size:12px">最后更新：{pd.Timestamp.now():%Y-%m-%d %H:%M}</p>
