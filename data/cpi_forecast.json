@@ -1,5 +1,8 @@
 {
-  "forecast_value": 1.0,
-  "source": "IMF WEO 2025-10",
-  "updated": "2025-11"
+  "forecast_value": 0.71,
+  "source": "复旦-ZEW 中国经济景气调查（复旦发展研究院）",
+  "source_url": "https://fddi.fudan.edu.cn/d7/28/c40448a775976/page.htm",
+  "article_title": "手动指定",
+  "updated": "2026-05-12",
+  "matched_pattern": "未来\\s*一\\s*年.*?通[货胀]?[率涨胀]?.*?为\\s*([+-]?\\d+\\.\\d+)\\s*%"
 }
