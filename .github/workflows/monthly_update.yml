@@ -2,8 +2,13 @@ name: Monthly Update
 
 on:
   schedule:
-    - cron: '0 2 18 * *'   # 每月18号 UTC 02:00（北京时间10:00）
-  workflow_dispatch:        # 支持手动触发
+    - cron: '0 2 18 * *'
+  workflow_dispatch:
+    inputs:
+      fddi_article_url:
+        description: '（可选）复旦-ZEW 文章 URL，例如 https://fddi.fudan.edu.cn/d7/28/c40448a775976/page.htm。留空则自动查找'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -11,12 +16,12 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
+    env:
+      FDDI_ARTICLE_URL: ${{ github.event.inputs.fddi_article_url }}
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: 安装 Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
