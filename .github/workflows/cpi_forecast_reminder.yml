@@ -1,0 +1,64 @@
+name: CPI Forecast Reminder
+
+on:
+  schedule:
+    - cron: '0 1 15 * *'      # 每月15号 UTC 01:00（北京时间09:00）
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 读取当前 CPI 预期值
+        id: read
+        uses: actions/checkout@v4
+
+      - name: 提取数值
+        id: extract
+        run: |
+          if [ -f data/cpi_forecast.json ]; then
+            VAL=$(python -c "import json; print(json.load(open('data/cpi_forecast.json'))['forecast_value'])")
+            UPD=$(python -c "import json; print(json.load(open('data/cpi_forecast.json')).get('updated', 'N/A'))")
+          else
+            VAL="N/A"; UPD="N/A"
+          fi
+          echo "value=$VAL" >> $GITHUB_OUTPUT
+          echo "updated=$UPD" >> $GITHUB_OUTPUT
+
+      - name: 创建提醒 Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const date = new Date().toISOString().slice(0, 7);
+            const val = "${{ steps.extract.outputs.value }}";
+            const upd = "${{ steps.extract.outputs.updated }}";
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `📌 ${date} 核对复旦-ZEW CPI 一致预期`,
+              body: `## 本月核对任务
+              
+              **当前系统使用的 CPI 预期：** \`${val}%\`（最后更新：${upd}）
+              
+              ### 操作步骤
+              
+              1. 访问以下任一来源，查看最新一期"复旦-ZEW 中国经济景气调查"报告：
+                 - 🔗 [ZEW 官网（英文版）](https://www.zew.de/en/publications/zew-expertise-research-reports/research-reports/financial-market-survey-china)
+                 - 🔗 复旦经济学院公众号 **"复旦泛海国金"**
+              
+              2. 找到报告中"**未来 12 个月 CPI 通胀预期**"的数值（通常在前几页"主要预测结果"表里）
+              
+              3. 对比与系统中 \`${val}%\` 是否一致：
+                 - ✅ 一致 → 直接关闭本 Issue
+                 - ❌ 不一致 → 手动编辑 \`data/cpi_forecast.json\`，修改 \`forecast_value\` 字段后 commit
+              
+              4. 顺便检查 \`data/cpi_forecast_alerts.log\` 是否有抓取失败记录
+              
+              ---
+              *本 Issue 由 GitHub Actions 每月 15 号自动创建*`,
+              labels: ['monthly-review', 'cpi-forecast']
+            });
