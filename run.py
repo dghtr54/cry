@@ -10,8 +10,9 @@ def main():
     fetch_data.fetch_all()
 
     # 2. 抓取 CPI 一致预期（复旦-ZEW，失败则沿用旧值）
-    cpi_fc = fetch_cpi_forecast.fetch_and_save_safe()
-    print(f"  本月使用 CPI 预期：{cpi_fc['forecast_value']}%（来源：{cpi_fc['source']}）")
+  import os
+    manual_url = os.environ.get("FDDI_ARTICLE_URL", "").strip() or None
+    cpi_fc = fetch_cpi_forecast.fetch_and_save_safe(manual_url=manual_url)
 
     # 3. 打分（示例输入，后续可接入真实抓取结果）
     demo_inputs = {
