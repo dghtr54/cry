@@ -13,54 +13,61 @@ DOCS_DIR = BASE_DIR / "docs"
 DOCS_DIR.mkdir(exist_ok=True)
 
 def load_raw_data():
-    """读取原始数据文件，返回当月最新值"""
+    """读取原始数据文件，返回当月最新值（适配中文列名）"""
     data = {}
     
-    # 1. 国债收益率
+    # 1. 国债收益率（raw_bond.csv 列名：日期,10年）
     bond_file = DATA_DIR / "raw_bond.csv"
     if bond_file.exists():
         df_bond = pd.read_csv(bond_file)
-        if not df_bond.empty and "bond_yield_10y" in df_bond.columns:
-            data["bond_yield_10y"] = df_bond["bond_yield_10y"].iloc[-1]
+        if not df_bond.empty and "10年" in df_bond.columns:
+            # 取最后一行的值
+            data["10年期国债收益率"] = df_bond["10年"].iloc[-1]
     
-    # 2. CPI
+    # 2. CPI（raw_cpi.csv 列名：商品,日期,今值,预测值,前值）
     cpi_file = DATA_DIR / "raw_cpi.csv"
     if cpi_file.exists():
         df_cpi = pd.read_csv(cpi_file)
         if not df_cpi.empty:
-            if "cpi_yoy" in df_cpi.columns:
-                data["cpi_yoy"] = df_cpi["cpi_yoy"].iloc[-1]
-            if "core_cpi_yoy" in df_cpi.columns:
-                data["core_cpi_yoy"] = df_cpi["core_cpi_yoy"].iloc[-1]
+            # 找到 CPI 和核心 CPI 的行
+            for _, row in df_cpi.iterrows():
+                if "CPI" in str(row.get("商品", "")) and "核心" not in str(row.get("商品", "")):
+                    data["CPI同比"] = row.get("今值", None)
+                elif "核心CPI" in str(row.get("商品", "")):
+                    data["核心CPI同比"] = row.get("今值", None)
     
-    # 3. PPI
+    # 3. PPI（raw_ppi.csv 列名：商品,日期,今值,预测值,前值）
     ppi_file = DATA_DIR / "raw_ppi.csv"
     if ppi_file.exists():
         df_ppi = pd.read_csv(ppi_file)
-        if not df_ppi.empty and "ppi_yoy" in df_ppi.columns:
-            data["ppi_yoy"] = df_ppi["ppi_yoy"].iloc[-1]
+        if not df_ppi.empty:
+            # 找到 PPI 的行
+            for _, row in df_ppi.iterrows():
+                if "PPI" in str(row.get("商品", "")):
+                    data["PPI同比"] = row.get("今值", None)
+                    break
     
     # 4. CPI 预期
     cpi_fc_file = DATA_DIR / "cpi_forecast.json"
     if cpi_fc_file.exists():
         with open(cpi_fc_file, "r", encoding="utf-8") as f:
             cpi_fc = json.load(f)
-            data["cpi_forecast"] = cpi_fc.get("forecast_value", None)
+            data["未来1年CPI一致预期"] = cpi_fc.get("forecast_value", None)
     
     # 5. 政策修正项
     scoring_file = DATA_DIR / "auto_scoring_result.json"
     if scoring_file.exists():
         with open(scoring_file, "r", encoding="utf-8") as f:
             scoring = json.load(f)
-            data["policy_adj"] = scoring.get("total_adjustment", 0.0)
+            data["政策修正项"] = scoring.get("total_adjustment", 0.0)
     
     return data
 
 def calculate_inflation_expectation(row):
     """计算估算通胀预期"""
-    core_avg = row.get("core_cpi_12m_avg", 0)
-    cpi_fc = row.get("cpi_forecast", 0)
-    policy_adj = row.get("policy_adj", 0)
+    core_avg = row.get("12M核心CPI均值", 0) or 0
+    cpi_fc = row.get("未来1年CPI一致预期", 0) or 0
+    policy_adj = row.get("政策修正项", 0) or 0
     
     inflation_exp = 0.5 * cpi_fc + 0.5 * core_avg + policy_adj
     return inflation_exp
@@ -77,42 +84,44 @@ def update_historical(new_data):
         df_hist = pd.read_csv(hist_file)
     else:
         df_hist = pd.DataFrame(columns=[
-            "date", "bond_yield_10y", "cpi_yoy", "core_cpi_yoy", "ppi_yoy",
-            "core_cpi_12m_avg", "cpi_forecast", "policy_adj",
-            "inflation_exp", "real_yield"
+            "月份", "10年期国债收益率", "CPI同比", "核心CPI同比", "PPI同比",
+            "12M核心CPI均值", "未来1年CPI一致预期", "政策修正项",
+            "估算通胀预期", "估算实际收益率"
         ])
     
     # 构造新行
     new_row = {
-        "date": current_month,
-        "bond_yield_10y": new_data.get("bond_yield_10y", None),
-        "cpi_yoy": new_data.get("cpi_yoy", None),
-        "core_cpi_yoy": new_data.get("core_cpi_yoy", None),
-        "ppi_yoy": new_data.get("ppi_yoy", None),
-        "cpi_forecast": new_data.get("cpi_forecast", None),
-        "policy_adj": new_data.get("policy_adj", 0.0),
+        "月份": current_month,
+        "10年期国债收益率": new_data.get("10年期国债收益率", None),
+        "CPI同比": new_data.get("CPI同比", None),
+        "核心CPI同比": new_data.get("核心CPI同比", None),
+        "PPI同比": new_data.get("PPI同比", None),
+        "未来1年CPI一致预期": new_data.get("未来1年CPI一致预期", None),
+        "政策修正项": new_data.get("政策修正项", 0.0),
     }
     
-    # 计算 core_cpi_12m_avg（需要历史数据）
+    # 计算 12M核心CPI均值（需要历史数据）
     if len(df_hist) >= 12:
-        recent_12 = df_hist.tail(12)["core_cpi_yoy"].dropna()
+        recent_12 = df_hist.tail(12)["核心CPI同比"].dropna()
         if len(recent_12) > 0:
-            new_row["core_cpi_12m_avg"] = recent_12.mean()
+            new_row["12M核心CPI均值"] = recent_12.mean()
     else:
         # 不足12个月，用现有数据均值
-        if "core_cpi_yoy" in df_hist.columns:
-            new_row["core_cpi_12m_avg"] = df_hist["core_cpi_yoy"].dropna().mean()
+        if "核心CPI同比" in df_hist.columns:
+            avg_val = df_hist["核心CPI同比"].dropna().mean()
+            new_row["12M核心CPI均值"] = avg_val if not pd.isna(avg_val) else None
     
     # 计算估算通胀预期
-    new_row["inflation_exp"] = calculate_inflation_expectation(new_row)
+    new_row["估算通胀预期"] = calculate_inflation_expectation(new_row)
     
     # 计算实际收益率
-    if new_row["bond_yield_10y"] is not None and new_row["inflation_exp"] is not None:
-        new_row["real_yield"] = new_row["bond_yield_10y"] - new_row["inflation_exp"]
+    if new_row["10年期国债收益率"] is not None and new_row["估算通胀预期"] is not None:
+        new_row["估算实际收益率"] = new_row["10年期国债收益率"] - new_row["估算通胀预期"]
     
     # 如果当月已存在，则更新；否则追加
-    if current_month in df_hist["date"].values:
-        df_hist.loc[df_hist["date"] == current_month, list(new_row.keys())] = list(new_row.values())
+    if current_month in df_hist["月份"].values:
+        for col, val in new_row.items():
+            df_hist.loc[df_hist["月份"] == current_month, col] = val
     else:
         df_hist = pd.concat([df_hist, pd.DataFrame([new_row])], ignore_index=True)
     
@@ -124,15 +133,15 @@ def update_historical(new_data):
 
 def create_charts(df):
     """生成 Plotly 图表"""
-    # 确保 date 列是 datetime 类型
-    df["date"] = pd.to_datetime(df["date"])
-    df = df.sort_values("date")
+    # 确保月份列是 datetime 类型
+    df["月份"] = pd.to_datetime(df["月份"])
+    df = df.sort_values("月份")
     
     # 图表1：10年期国债收益率
     fig1 = go.Figure()
     fig1.add_trace(go.Scatter(
-        x=df["date"],
-        y=df["bond_yield_10y"],
+        x=df["月份"],
+        y=df["10年期国债收益率"],
         mode="lines+markers",
         name="10年期国债收益率",
         line=dict(color="blue", width=2)
@@ -148,8 +157,8 @@ def create_charts(df):
     # 图表2：估算通胀预期
     fig2 = go.Figure()
     fig2.add_trace(go.Scatter(
-        x=df["date"],
-        y=df["inflation_exp"],
+        x=df["月份"],
+        y=df["估算通胀预期"],
         mode="lines+markers",
         name="估算通胀预期",
         line=dict(color="orange", width=2)
@@ -165,8 +174,8 @@ def create_charts(df):
     # 图表3：估算实际收益率
     fig3 = go.Figure()
     fig3.add_trace(go.Scatter(
-        x=df["date"],
-        y=df["real_yield"],
+        x=df["月份"],
+        y=df["估算实际收益率"],
         mode="lines+markers",
         name="估算实际收益率",
         line=dict(color="green", width=2)
