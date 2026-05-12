@@ -5,7 +5,6 @@ from datetime import datetime
 
 import pandas as pd
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 
 # 路径配置
 BASE_DIR = Path(__file__).parent.parent
@@ -59,7 +58,6 @@ def load_raw_data():
 
 def calculate_inflation_expectation(row):
     """计算估算通胀预期"""
-    # 需要：core_cpi_12m_avg, cpi_forecast, policy_adj
     core_avg = row.get("core_cpi_12m_avg", 0)
     cpi_fc = row.get("cpi_forecast", 0)
     policy_adj = row.get("policy_adj", 0)
@@ -162,7 +160,7 @@ def create_charts(df):
         yaxis_title="%",
         hovermode="x unified",
         template="plotly_white"
-    ))
+    )
     
     # 图表3：估算实际收益率
     fig3 = go.Figure()
@@ -201,9 +199,37 @@ def build():
     
     fig1, fig2, fig3 = create_charts(df_hist)
     
-    # 4. 生成 HTML
-    html_content = f"""
-<!DOCTYPE html>
+    # 4. 读取 CPI 预期和打分信息（用于页面展示）
+    cpi_fc_file = DATA_DIR / "cpi_forecast.json"
+    cpi_info = {}
+    if cpi_fc_file.exists():
+        with open(cpi_fc_file, "r", encoding="utf-8") as f:
+            cpi_info = json.load(f)
+    
+    scoring_file = DATA_DIR / "auto_scoring_result.json"
+    score = {}
+    if scoring_file.exists():
+        with open(scoring_file, "r", encoding="utf-8") as f:
+            score = json.load(f)
+    
+    # 5. 构造打分明细表格
+    score_html = ""
+    if score:
+        score_html = f"""
+        <h2>本月政策/周期修正项明细</h2>
+        <table border="1" cellpadding="8" style="border-collapse:collapse; margin: 20px 0;">
+          <tr style="background:#f0f0f0"><th>分项</th><th>得分</th><th>说明</th></tr>
+          <tr><td>财政</td><td>{score.get('fiscal', {}).get('score', 0):+.2f}%</td><td>{score.get('fiscal', {}).get('desc', '')}</td></tr>
+          <tr><td>地产</td><td>{score.get('real_estate', {}).get('score', 0):+.2f}%</td><td>{score.get('real_estate', {}).get('desc', '')}</td></tr>
+          <tr><td>信用</td><td>{score.get('credit', {}).get('score', 0):+.2f}%</td><td>{score.get('credit', {}).get('desc', '')}</td></tr>
+          <tr><td>PPI</td><td>{score.get('ppi', {}).get('score', 0):+.2f}%</td><td>{score.get('ppi', {}).get('desc', '')}</td></tr>
+          <tr><td>汇率</td><td>{score.get('fx', {}).get('score', 0):+.2f}%</td><td>{score.get('fx', {}).get('desc', '')}</td></tr>
+          <tr style="background:#fffacd"><td><b>合计(封顶±0.5%)</b></td><td><b>{score.get('capped_total', 0):+.2f}%</b></td><td></td></tr>
+        </table>
+        """
+    
+    # 6. 生成 HTML
+    html_content = f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -222,6 +248,12 @@ def build():
             text-align: center;
             color: #333;
         }}
+        .info-box {{
+            background: #f0f8ff;
+            padding: 15px;
+            border-left: 4px solid #4a90e2;
+            margin: 20px 0;
+        }}
         .chart {{
             background: white;
             border-radius: 8px;
@@ -229,25 +261,49 @@ def build():
             margin: 20px 0;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }}
+        .footer {{
+            color: #888;
+            font-size: 12px;
+            text-align: center;
+            margin-top: 40px;
+        }}
     </style>
 </head>
 <body>
     <h1>中国10年期实际收益率月度跟踪</h1>
     
+    <div class="info-box">
+        📊 <b>未来12个月CPI一致预期：{cpi_info.get('forecast_value', 'N/A')}%</b><br>
+        来源：<a href="{cpi_info.get('source_url', '#')}" target="_blank">{cpi_info.get('source', '未知')}</a> | 
+        更新：{cpi_info.get('updated', 'N/A')}
+        {' ⚠️ 自动抓取失败，使用上期值' if cpi_info.get('fetch_status') == 'failed_used_cache' else ''}
+    </div>
+    
     <div class="chart" id="chart1"></div>
     <div class="chart" id="chart2"></div>
     <div class="chart" id="chart3"></div>
     
+    {score_html}
+    
+    <div class="footer">
+        最后更新：{datetime.now().strftime('%Y-%m-%d %H:%M')}
+    </div>
+    
     <script>
-        {fig1.to_html(full_html=False, include_plotlyjs=False, div_id="chart1")}
-        {fig2.to_html(full_html=False, include_plotlyjs=False, div_id="chart2")}
-        {fig3.to_html(full_html=False, include_plotlyjs=False, div_id="chart3")}
+        var chart1 = {fig1.to_json()};
+        Plotly.newPlot('chart1', chart1.data, chart1.layout);
+        
+        var chart2 = {fig2.to_json()};
+        Plotly.newPlot('chart2', chart2.data, chart2.layout);
+        
+        var chart3 = {fig3.to_json()};
+        Plotly.newPlot('chart3', chart3.data, chart3.layout);
     </script>
 </body>
 </html>
 """
     
-    # 5. 保存 HTML
+    # 7. 保存 HTML
     output_file = DOCS_DIR / "index.html"
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(html_content)
