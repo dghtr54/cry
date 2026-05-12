@@ -1,20 +1,19 @@
 """月度运行总入口"""
-from src import fetch_data, scoring, build_dashboard
-import json
-from pathlib import Path
-
-DATA_DIR = Path(__file__).parent / "data"
+from src import fetch_data, fetch_cpi_forecast, scoring, build_dashboard
 
 def main():
     print("=" * 50)
     print("中国10年期实际收益率月度跟踪 - 开始运行")
     print("=" * 50)
-    
-    # 1. 抓取数据
+
+    # 1. 抓取宏观数据
     fetch_data.fetch_all()
-    
-    # 2. 计算打分（这里用示例输入，实际应从抓取结果中解析）
-    # TODO：根据 data/raw_*.csv 解析出真实指标值后传入
+
+    # 2. 抓取 CPI 一致预期（复旦-ZEW，失败则沿用旧值）
+    cpi_fc = fetch_cpi_forecast.fetch_and_save_safe()
+    print(f"  本月使用 CPI 预期：{cpi_fc['forecast_value']}%（来源：{cpi_fc['source']}）")
+
+    # 3. 打分（示例输入，后续可接入真实抓取结果）
     demo_inputs = {
         "fiscal_exp_yoy": 3.0, "fiscal_rev_yoy": -1.0,
         "re_sales": -12.0, "re_price": -4.0, "re_invest": -9.0,
@@ -23,10 +22,10 @@ def main():
         "usdcny_now": 7.25, "usdcny_3m_ago": 7.15,
     }
     scoring.calc_total_adjustment(demo_inputs)
-    
-    # 3. 生成看板
+
+    # 4. 生成看板
     build_dashboard.build()
-    
+
     print("=" * 50)
     print("✅ 全部完成！查看 docs/index.html")
     print("=" * 50)
