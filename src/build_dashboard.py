@@ -393,3 +393,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+build = main  # 或者 build = generate，取决于实际函数名
