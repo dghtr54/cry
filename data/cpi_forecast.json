@@ -1,8 +1,8 @@
 {
-  "forecast_value": 0.71,
+  "forecast_value": 2.2,
   "source": "复旦-ZEW 中国经济景气调查（复旦发展研究院）",
-  "source_url": "https://fddi.fudan.edu.cn/d7/28/c40448a775976/page.htm",
-  "article_title": "手动指定",
-  "updated": "2026-05-12",
-  "matched_pattern": "未来\\s*一\\s*年.*?通[货胀]?[率涨胀]?.*?为\\s*([+-]?\\d+\\.\\d+)\\s*%"
+  "source_url": "https://fddi.fudan.edu.cn/f3/1f/c18965a783135/page.htm",
+  "article_title": "新发布的复旦-ZEW经济景气指数第152期报告中，一组数据在三大经济体的横向对比中极具冲击力：中国宏观经济景气指数从7.69跃升至1...",
+  "updated": "2026-06-18",
+  "matched_pattern": "1\\s*年.*?通胀率.*?([+-]?\\d+\\.\\d+)\\s*%"
 }
