@@ -5,3 +5,4 @@
 [2026-05-13 05:10] 失败：自动查找文章链接失败，请通过 workflow_dispatch 手动传入 article_url；沿用 0.71%
 [2026-05-18 14:41] 失败：自动查找文章链接失败，请通过 workflow_dispatch 手动传入 article_url；沿用 0.71%
 [2026-07-18 04:37] 失败：自动查找文章链接失败，请通过 workflow_dispatch 手动传入 article_url；沿用 2.2%
+[2026-08-18 02:46] 失败：自动查找文章链接失败，请通过 workflow_dispatch 手动传入 article_url；沿用 2.2%
